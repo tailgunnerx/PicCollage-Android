@@ -9,7 +9,7 @@
 PicCollage is designed for speed, precision, and aesthetic control. Unlike many collage apps that rely on heavy external libraries, this app uses a custom-built rendering engine to deliver high-resolution exports and a butter-smooth UI optimized specifically for Android phone devices.
 
 
-<c><img width="297" height="577" alt="image" src="https://github.com/user-attachments/assets/e39f7b75-2757-4cbe-82da-0aa8d05ecd0e" /></c>
+<p align="center"> <img width="297" height="577" alt="image" src="https://github.com/user-attachments/assets/e39f7b75-2757-4cbe-82da-0aa8d05ecd0e" />
 
 
 ## ✨ Premium Features
