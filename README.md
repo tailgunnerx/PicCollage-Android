@@ -7,7 +7,7 @@
 **A high-performance, native Android collage studio built with Jetpack Compose.**
 
 PicCollage is designed for speed, precision, and aesthetic control. Unlike many collage apps that rely on heavy external libraries, this app uses a custom-built rendering engine to deliver high-resolution exports and a butter-smooth UI optimized specifically for Android phone devices.
-<img width="1079" height="2311" alt="image" src="https://github.com/user-attachments/assets/e39f7b75-2757-4cbe-82da-0aa8d05ecd0e" />
+<img width="594" height="1155" alt="image" src="https://github.com/user-attachments/assets/e39f7b75-2757-4cbe-82da-0aa8d05ecd0e" />
 
 
 ## ✨ Premium Features
