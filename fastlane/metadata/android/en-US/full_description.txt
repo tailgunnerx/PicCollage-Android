@@ -1,0 +1,11 @@
+A high-performance, native Android photo collage studio built entirely with Jetpack Compose.
+
+Features:
+- 🎨 26 Dynamic Gradient Borders: Neon, Cyberpunk, Holographic, and more.
+- 📐 10 Pro-Style Layouts: From single frames to complex asymmetric grids.
+- 🖼️ Slot-Based Photo Management: Add photos exactly where you want them.
+- 🔄 Image Manipulation: 90° rotation and easy photo removal.
+- 🌈 Advanced Color Control: Full-spectrum picker and vibrant palettes.
+- 💾 High-Resolution Export: 1080x1080px crisp output saved to your Gallery.
+
+Optimized for speed and aesthetic control with zero external library overhead. 100% Offline and Private.
