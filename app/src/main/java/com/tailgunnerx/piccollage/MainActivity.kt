@@ -1,4 +1,4 @@
-package com.example.piccollage
+package com.tailgunnerx.piccollage
 
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory

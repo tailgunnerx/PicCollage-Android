@@ -1,4 +1,4 @@
-package com.example.piccollage
+package com.tailgunnerx.piccollage
 
 enum class CollageType(
     val displayName: String,

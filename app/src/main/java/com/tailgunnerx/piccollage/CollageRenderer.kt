@@ -1,4 +1,4 @@
-package com.example.piccollage
+package com.tailgunnerx.piccollage
 
 import android.content.ContentValues
 import android.content.Context
