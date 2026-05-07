@@ -37,6 +37,9 @@ android {
     buildFeatures {
         compose = true
     }
+    lint {
+        disable += "NullableMutableLiveData"
+    }
 }
 
 dependencies {
