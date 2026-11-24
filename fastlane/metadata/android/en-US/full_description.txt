@@ -4,7 +4,7 @@ Features:
 - 🎨 50 Dynamic Gradient Borders: Neon, Cyberpunk, Holographic, Luxury Metallics, Pastels, Botanicals, and Conical Sweeps.
 - 🎨 24 Procedural Themed Borders: Skulls & crossbones, cobwebs, ghosts, Beach Vibes, Tropical, Camping, Baby Blue & Baby Pink, Pet Paws, Celestial, Checkerboard, and seasonal classics.
 - 📐 11 Pro Layouts + Custom Grid Builder: Including 3×3 grid and draggable row/column lines.
-- 🖼️ Flexible Aspect Ratios: Square, Portrait, Landscape, Story (9:16), Wide (16:9), or Custom W:H.
+- 🖼️ Flexible Aspect Ratios & Fit Mode: Auto-match canvas to your photos, or choose Square, Portrait, Landscape, Story (9:16), Wide (16:9), or Custom W:H — with Fill (crop) or Fit (full uncropped image) per cell or globally.
 - 🔲 Customizable Photo Corners & Borders: Precision sliders for border width and square-to-rounded corners.
 - 🔄 Slot-Based Photo Management: Pinch-to-zoom, pan, 90° rotation, and instant photo removal.
 - 🌈 Advanced Color Control: Full-spectrum HSV picker and vibrant solid palettes.

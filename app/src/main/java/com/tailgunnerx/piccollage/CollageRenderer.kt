@@ -23,7 +23,8 @@ data class PhotoData(
     val bitmap: Bitmap,
     val panX: Float = 0f,
     val panY: Float = 0f,
-    val zoom: Float = 1f
+    val zoom: Float = 1f,
+    val scaleMode: PhotoScaleMode = PhotoScaleMode.FILL
 )
 
 /**
@@ -80,34 +81,27 @@ suspend fun renderAndSaveCollage(
         if (dst.width() <= 0f || dst.height() <= 0f) return
         val bmp = state.bitmap
         if (bmp.width <= 0 || bmp.height <= 0) return
-        // Scale-to-fill (center crop), then apply the user's zoom/pan.
-        val srcAspect = bmp.width.toFloat() / bmp.height
-        val dstAspect = dst.width() / dst.height()
-        val newW: Float
-        val newH: Float
-        if (srcAspect > dstAspect) {
-            newW = bmp.height * dstAspect
-            newH = bmp.height.toFloat()
-        } else {
-            newW = bmp.width.toFloat()
-            newH = bmp.width / dstAspect
-        }
 
-        val scaledW = newW / state.zoom
-        val scaledH = newH / state.zoom
+        val placement = computePhotoPlacement(
+            bmpW = bmp.width.toFloat(),
+            bmpH = bmp.height.toFloat(),
+            cellLeft = dst.left,
+            cellTop = dst.top,
+            cellWidth = dst.width(),
+            cellHeight = dst.height(),
+            mode = state.scaleMode,
+            zoom = state.zoom,
+            panX = state.panX,
+            panY = state.panY
+        )
+        val src = RectF(placement.srcLeft, placement.srcTop, placement.srcRight, placement.srcBottom)
+        val fittedDst = RectF(placement.dstLeft, placement.dstTop, placement.dstRight, placement.dstBottom)
 
-        val dx = ((bmp.width - scaledW) / 2) - state.panX * scaledW
-        val clampedDx = dx.coerceIn(0f, bmp.width - scaledW)
-        val dy = ((bmp.height - scaledH) / 2) - state.panY * scaledH
-        val clampedDy = dy.coerceIn(0f, bmp.height - scaledH)
-
-        val src = RectF(clampedDx, clampedDy, clampedDx + scaledW, clampedDy + scaledH)
-
-        // A bitmap shader lets us draw anti-aliased rounded corners.
-        val matrix = Matrix().apply { setRectToRect(src, dst, Matrix.ScaleToFit.FILL) }
+        // A bitmap shader lets us draw anti-aliased rounded corners on the photo itself.
+        val matrix = Matrix().apply { setRectToRect(src, fittedDst, Matrix.ScaleToFit.FILL) }
         val shader = BitmapShader(bmp, Shader.TileMode.CLAMP, Shader.TileMode.CLAMP).apply { setLocalMatrix(matrix) }
         val paint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG).apply { this.shader = shader }
-        if (radius > 0f) canvas.drawRoundRect(dst, radius, radius, paint) else canvas.drawRect(dst, paint)
+        if (radius > 0f) canvas.drawRoundRect(fittedDst, radius, radius, paint) else canvas.drawRect(fittedDst, paint)
     }
 
     cells.forEachIndexed { i, cell ->

@@ -1,0 +1,2 @@
+• Added Fit Image mode (Fill vs Fit) via Settings, quick pill below the preview, and per-photo toggle buttons (#3)
+• Added Auto (Match Photos) canvas aspect ratio & proportional stack sizing to fit images automatically (#3)

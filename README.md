@@ -17,7 +17,7 @@ PicCollage is designed for speed, precision, and aesthetic control. Unlike many 
 - **🎨 50 Dynamic Gradient Borders:** A massive library of Neon, Cyberpunk, Holographic, Luxury Metallics, Pastels, Botanicals, and Conical Sweep gradients.
 - **🎨 24 Procedural Themed Borders:** Vector-drawn skulls & crossbones, gothic cobwebs, ghosts, Beach Vibes waves, Tropical palms, Camping pines & tents, Baby Blue & Baby Pink clouds, Pet Paws, Celestial planets, Checkerboard, and seasonal classics.
 - **📐 11 Pro Layouts + Custom Grid Builder:** Includes `3×3` grid plus a custom builder where you choose rows & columns and drag the divider lines.
-- **📲 Flexible Aspect Ratios:** Square (`1:1`), Portrait (`4:5`, `3:4`, `2:3`), Story (`9:16`), Landscape (`5:4`, `4:3`, `3:2`), Wide (`16:9`), or any Custom `W:H` ratio.
+- **📲 Flexible Aspect Ratios & Fit Mode:** Auto-match the canvas ratio to your loaded photos, or pick Square (`1:1`), Portrait (`4:5`, `3:4`, `2:3`), Story (`9:16`), Landscape (`5:4`, `4:3`, `3:2`), Wide (`16:9`), or any Custom `W:H` ratio—with **Fill** (crop) or **Fit** (full uncropped image) globally or per cell.
 - **🖼️ Slot-Based Photo Management:** Pinch-to-zoom, pan, rotate 90°, or remove individual photos directly in the live preview.
 - **🌈 Advanced Color & Corner Control:** Full-spectrum HSV color picker, border thickness slider (`0–40px`), and photo corner radius slider (`0` = square corners).
 - **💾 Multi-Resolution Export:** Standard (`1080p`), High (`1440p`), and Ultra (`2160p`) crisp JPEG output saved directly to your Gallery.
