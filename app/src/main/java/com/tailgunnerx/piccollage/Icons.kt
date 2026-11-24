@@ -72,3 +72,23 @@ val OpenInNewIcon = ImageVector.Builder("OpenInNew", 24.dp, 24.dp, 24f, 24f).app
         moveTo(14f, 3f); verticalLineToRelative(2f); horizontalLineToRelative(3.59f); lineToRelative(-9.83f, 9.83f); lineToRelative(1.41f, 1.41f); lineTo(19f, 6.41f); verticalLineTo(10f); horizontalLineToRelative(2f); verticalLineTo(3f); horizontalLineToRelative(-7f); close()
     }
 }.build()
+
+/** Four inward-pointing corners: indicates "Fit full image inside cell". */
+val FitInsideIcon = ImageVector.Builder("FitInside", 24.dp, 24.dp, 24f, 24f).apply {
+    path(fill = SolidColor(Color.White)) {
+        moveTo(5f, 16f); horizontalLineToRelative(3f); verticalLineToRelative(3f); horizontalLineToRelative(2f); verticalLineToRelative(-5f); horizontalLineTo(5f); verticalLineToRelative(2f); close()
+        moveTo(8f, 8f); horizontalLineTo(5f); verticalLineToRelative(2f); horizontalLineToRelative(5f); verticalLineTo(5f); horizontalLineTo(8f); verticalLineToRelative(3f); close()
+        moveTo(14f, 19f); horizontalLineToRelative(2f); verticalLineToRelative(-3f); horizontalLineToRelative(3f); verticalLineToRelative(-2f); horizontalLineToRelative(-5f); verticalLineToRelative(5f); close()
+        moveTo(16f, 8f); verticalLineTo(5f); horizontalLineToRelative(-2f); verticalLineToRelative(5f); horizontalLineToRelative(5f); verticalLineTo(8f); horizontalLineToRelative(-3f); close()
+    }
+}.build()
+
+/** Four outward-pointing corners: indicates "Fill / crop cell edge-to-edge". */
+val ExpandFillIcon = ImageVector.Builder("ExpandFill", 24.dp, 24.dp, 24f, 24f).apply {
+    path(fill = SolidColor(Color.White)) {
+        moveTo(7f, 14f); horizontalLineTo(5f); verticalLineToRelative(5f); horizontalLineToRelative(5f); verticalLineToRelative(-2f); horizontalLineTo(7f); verticalLineToRelative(-3f); close()
+        moveTo(5f, 10f); horizontalLineToRelative(2f); verticalLineTo(7f); horizontalLineToRelative(3f); verticalLineTo(5f); horizontalLineTo(5f); verticalLineToRelative(5f); close()
+        moveTo(17f, 17f); horizontalLineToRelative(-3f); verticalLineToRelative(2f); horizontalLineToRelative(5f); verticalLineToRelative(-5f); horizontalLineToRelative(-2f); verticalLineToRelative(3f); close()
+        moveTo(14f, 5f); verticalLineToRelative(2f); horizontalLineToRelative(3f); verticalLineToRelative(3f); horizontalLineToRelative(2f); verticalLineTo(5f); horizontalLineToRelative(-5f); close()
+    }
+}.build()

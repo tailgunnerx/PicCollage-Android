@@ -4,6 +4,110 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import kotlin.math.exp
+import kotlin.math.ln
+
+enum class PhotoScaleMode(val label: String, val subtitle: String) {
+    FILL("Fill", "Crop to fill cell"),
+    FIT("Fit", "Full uncropped image")
+}
+
+/**
+ * Exact source-crop and destination-draw rectangles for a photo inside a cell,
+ * shared by both the live Compose preview and the exported JPEG renderer.
+ */
+data class PhotoPlacement(
+    val srcLeft: Float,
+    val srcTop: Float,
+    val srcRight: Float,
+    val srcBottom: Float,
+    val dstLeft: Float,
+    val dstTop: Float,
+    val dstRight: Float,
+    val dstBottom: Float,
+    val maxPanX: Float,
+    val maxPanY: Float
+) {
+    val srcWidth get() = srcRight - srcLeft
+    val srcHeight get() = srcBottom - srcTop
+    val dstWidth get() = dstRight - dstLeft
+    val dstHeight get() = dstBottom - dstTop
+}
+
+fun computePhotoPlacement(
+    bmpW: Float,
+    bmpH: Float,
+    cellLeft: Float,
+    cellTop: Float,
+    cellWidth: Float,
+    cellHeight: Float,
+    mode: PhotoScaleMode,
+    zoom: Float,
+    panX: Float,
+    panY: Float
+): PhotoPlacement {
+    val cw = cellWidth.coerceAtLeast(1f)
+    val ch = cellHeight.coerceAtLeast(1f)
+    val bw = bmpW.coerceAtLeast(1f)
+    val bh = bmpH.coerceAtLeast(1f)
+    val z = zoom.coerceIn(1f, 5f)
+
+    val baseScale = when (mode) {
+        PhotoScaleMode.FILL -> maxOf(cw / bw, ch / bh)
+        PhotoScaleMode.FIT -> minOf(cw / bw, ch / bh)
+    }
+    val s = (baseScale * z).coerceAtLeast(1e-4f)
+    val drawnW = bw * s
+    val drawnH = bh * s
+
+    val visDstW = minOf(cw, drawnW)
+    val visDstH = minOf(ch, drawnH)
+    val dstL = cellLeft + (cw - visDstW) / 2f
+    val dstT = cellTop + (ch - visDstH) / 2f
+
+    val visSrcW = (visDstW / s).coerceIn(1f, bw)
+    val visSrcH = (visDstH / s).coerceIn(1f, bh)
+
+    val maxPanX = ((bw - visSrcW) / (2f * visSrcW)).coerceAtLeast(0f)
+    val maxPanY = ((bh - visSrcH) / (2f * visSrcH)).coerceAtLeast(0f)
+    val px = panX.coerceIn(-maxPanX, maxPanX)
+    val py = panY.coerceIn(-maxPanY, maxPanY)
+
+    val srcL = (((bw - visSrcW) / 2f) - px * visSrcW).coerceIn(0f, bw - visSrcW)
+    val srcT = (((bh - visSrcH) / 2f) - py * visSrcH).coerceIn(0f, bh - visSrcH)
+
+    return PhotoPlacement(
+        srcLeft = srcL,
+        srcTop = srcT,
+        srcRight = srcL + visSrcW,
+        srcBottom = srcT + visSrcH,
+        dstLeft = dstL,
+        dstTop = dstT,
+        dstRight = dstL + visDstW,
+        dstBottom = dstT + visDstH,
+        maxPanX = maxPanX,
+        maxPanY = maxPanY
+    )
+}
+
+/**
+ * Computes the ideal canvas aspect ratio (W / H) so loaded photos match their cell shapes
+ * with minimal or zero cropping.
+ */
+fun computeAutoCanvasRatio(cells: List<CellRect>, photoAspects: List<Float?>): Float {
+    val logRatios = ArrayList<Double>(cells.size)
+    cells.forEachIndexed { i, cell ->
+        val pAspect = photoAspects.getOrNull(i) ?: return@forEachIndexed
+        val cw = (cell.right - cell.left).coerceAtLeast(0.01f)
+        val ch = (cell.bottom - cell.top).coerceAtLeast(0.01f)
+        val desiredCanvasRatio = pAspect * (ch / cw)
+        if (desiredCanvasRatio > 0f && desiredCanvasRatio.isFinite()) {
+            logRatios.add(ln(desiredCanvasRatio.toDouble()))
+        }
+    }
+    if (logRatios.isEmpty()) return 1f
+    return exp(logRatios.average()).toFloat().coerceIn(0.25f, 4f)
+}
 
 /**
  * A single photo cell, expressed as fractions (0..1) of the collage canvas.
@@ -131,6 +235,36 @@ class CustomGridState(initialCols: Int = 3, initialRows: Int = 3) {
     fun resetLines() {
         colStops.clear(); colStops.addAll(evenStops(cols))
         rowStops.clear(); rowStops.addAll(evenStops(rows))
+    }
+
+    /**
+     * Sizes single-column rows (or single-row columns) proportionally to each photo's
+     * natural aspect ratio so mixed-aspect stacks fit edge-to-edge without bars or cropping.
+     */
+    fun fitStopsToPhotos(photoAspects: List<Float?>) {
+        if (cols == 1 && rows > 1) {
+            val weights = (0 until rows).map { i -> 1f / (photoAspects.getOrNull(i) ?: 1f).coerceIn(0.2f, 5f) }
+            applyWeights(rowStops, weights)
+        } else if (rows == 1 && cols > 1) {
+            val weights = (0 until cols).map { i -> (photoAspects.getOrNull(i) ?: 1f).coerceIn(0.2f, 5f) }
+            applyWeights(colStops, weights)
+        }
+    }
+
+    private fun applyWeights(target: MutableList<Float>, weights: List<Float>) {
+        val sum = weights.sum().coerceAtLeast(0.01f)
+        var acc = 0f
+        val newStops = ArrayList<Float>(weights.size - 1)
+        for (i in 0 until weights.lastIndex) {
+            acc += weights[i] / sum
+            val prev = if (i == 0) 0f else newStops[i - 1]
+            val maxAllowed = 1f - (weights.lastIndex - i) * MIN_CELL
+            newStops.add(acc.coerceIn(prev + MIN_CELL, maxAllowed))
+        }
+        if (newStops.size == target.size && isValid(newStops)) {
+            target.clear()
+            target.addAll(newStops)
+        }
     }
 
     fun moveColStop(i: Int, delta: Float) = moveStop(colStops, i, delta)

@@ -37,6 +37,12 @@ data class ChangelogEntry(val version: String, val date: String, val notes: Stri
 
 val CHANGELOG = listOf(
     ChangelogEntry(
+        version = "1.2",
+        date = "2026-11-23",
+        notes = "• Added Fit Image mode (Fill vs Fit) so full uncropped photos fit cleanly inside any cell, via Settings, the quick pill below the preview, or per-photo cell buttons (#3)\n" +
+            "• Added Auto (Match Photos) canvas aspect ratio & proportional stack sizing so photo grids automatically adapt to your images' dimensions (#3)"
+    ),
+    ChangelogEntry(
         version = "1.1",
         date = "2026-11-23",
         notes = "• Added Settings popup with canvas aspect ratios: Portrait, Landscape, Story, Wide & Custom W:H (#1)\n" +
@@ -59,6 +65,7 @@ val CHANGELOG = listOf(
 // ─── Settings model ──────────────────────────────────────────────────────────
 
 enum class AspectRatioOption(val label: String, val ratioLabel: String, val w: Int, val h: Int) {
+    AUTO("Match Photos", "Auto", 0, 0),
     SQUARE("Square", "1:1", 1, 1),
     PORTRAIT_4_5("Portrait", "4:5", 4, 5),
     PORTRAIT_3_4("Portrait", "3:4", 3, 4),
@@ -81,26 +88,35 @@ data class AppSettings(
     val aspect: AspectRatioOption = AspectRatioOption.SQUARE,
     val customW: Int = 3,
     val customH: Int = 2,
+    val scaleMode: PhotoScaleMode = PhotoScaleMode.FILL,
     /** Photo corner radius in preview dp. 0 = square corners. */
     val cornerRadius: Float = 0f,
     val quality: ExportQuality = ExportQuality.STANDARD,
     val showEmojis: Boolean = true
 ) {
     /** width / height, clamped to a sane range. */
-    val ratio: Float
-        get() {
-            val r = if (aspect == AspectRatioOption.CUSTOM) customW.toFloat() / customH
-            else aspect.w.toFloat() / aspect.h
-            return r.coerceIn(0.25f, 4f)
+    fun effectiveRatio(autoRatio: Float = 1f): Float {
+        val r = when (aspect) {
+            AspectRatioOption.AUTO -> autoRatio
+            AspectRatioOption.CUSTOM -> customW.toFloat() / customH
+            else -> aspect.w.toFloat() / aspect.h
         }
+        return r.coerceIn(0.25f, 4f)
+    }
 
     val ratioLabel: String
-        get() = if (aspect == AspectRatioOption.CUSTOM) "$customW:$customH" else aspect.ratioLabel
+        get() = when (aspect) {
+            AspectRatioOption.CUSTOM -> "$customW:$customH"
+            else -> aspect.ratioLabel
+        }
 
-    fun outputSize(q: ExportQuality = quality): IntSize {
+    fun outputSize(q: ExportQuality = quality, autoRatio: Float = 1f): IntSize {
+        val r = effectiveRatio(autoRatio)
         val short = q.shortSide
-        return if (ratio >= 1f) IntSize((short * ratio).roundToInt(), short)
-        else IntSize(short, (short / ratio).roundToInt())
+        // ensure even pixel dimensions for crisp JPEG chroma subsampling
+        val rawW = if (r >= 1f) (short * r).roundToInt() else short
+        val rawH = if (r >= 1f) short else (short / r).roundToInt()
+        return IntSize((rawW + 1) and -2, (rawH + 1) and -2)
     }
 
     /** Prefixes [text] with [emoji] only if the user wants emojis in the UI. */
@@ -124,6 +140,7 @@ object SettingsStore {
             aspect = enumOrDefault(p.getString("aspect", null), d.aspect),
             customW = p.getInt("customW", d.customW).coerceIn(1, AppSettings.CUSTOM_MAX),
             customH = p.getInt("customH", d.customH).coerceIn(1, AppSettings.CUSTOM_MAX),
+            scaleMode = enumOrDefault(p.getString("scaleMode", null), d.scaleMode),
             cornerRadius = p.getFloat("cornerRadius", d.cornerRadius).coerceIn(0f, AppSettings.CORNER_MAX),
             quality = enumOrDefault(p.getString("quality", null), d.quality),
             showEmojis = p.getBoolean("showEmojis", d.showEmojis)
@@ -135,6 +152,7 @@ object SettingsStore {
             .putString("aspect", s.aspect.name)
             .putInt("customW", s.customW)
             .putInt("customH", s.customH)
+            .putString("scaleMode", s.scaleMode.name)
             .putFloat("cornerRadius", s.cornerRadius)
             .putString("quality", s.quality.name)
             .putBoolean("showEmojis", s.showEmojis)
@@ -170,6 +188,7 @@ object SettingsStore {
 @Composable
 fun SettingsDialog(
     settings: AppSettings,
+    autoRatio: Float,
     onChange: (AppSettings) -> Unit,
     onDismiss: () -> Unit
 ) {
@@ -228,8 +247,7 @@ fun SettingsDialog(
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     AspectRatioOption.entries.forEach { opt ->
-                        val r = if (opt == AspectRatioOption.CUSTOM) settings.copy(aspect = opt).ratio
-                        else opt.w.toFloat() / opt.h
+                        val r = settings.copy(aspect = opt).effectiveRatio(autoRatio)
                         AspectChip(
                             label = opt.label,
                             ratioLabel = if (opt == AspectRatioOption.CUSTOM) "${settings.customW}:${settings.customH}" else opt.ratioLabel,
@@ -269,6 +287,20 @@ fun SettingsDialog(
                     }
                 }
 
+                // ── Photo scaling (Fill vs Fit) ──────────────────────────────
+                SectionTitle("Photo scaling", "Fill crops edge-to-edge · Fit shows the entire image")
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                    PhotoScaleMode.entries.forEach { mode ->
+                        OptionCard(
+                            title = mode.label,
+                            subtitle = mode.subtitle,
+                            selected = settings.scaleMode == mode,
+                            onClick = { onChange(settings.copy(scaleMode = mode)) },
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+                }
+
                 // ── Corners ──────────────────────────────────────────────────
                 SectionTitle("Photo corners", "Set to 0 for square corners")
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -295,7 +327,7 @@ fun SettingsDialog(
                 SectionTitle("Export resolution", "Size of the saved JPEG")
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
                     ExportQuality.entries.forEach { q ->
-                        val sz = settings.outputSize(q)
+                        val sz = settings.outputSize(q, autoRatio)
                         OptionCard(
                             title = q.label,
                             subtitle = "${sz.width}×${sz.height}",

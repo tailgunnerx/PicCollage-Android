@@ -43,7 +43,6 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.graphics.toArgb
@@ -89,8 +88,17 @@ class PhotoState(initialBitmap: Bitmap) {
     var panX by mutableStateOf(0f)
     var panY by mutableStateOf(0f)
     var zoom by mutableStateOf(1f)
+    var scaleModeOverride by mutableStateOf<PhotoScaleMode?>(null)
 
-    fun toPhotoData() = PhotoData(bitmap, panX, panY, zoom)
+    fun effectiveMode(defaultMode: PhotoScaleMode): PhotoScaleMode = scaleModeOverride ?: defaultMode
+
+    fun toPhotoData(defaultMode: PhotoScaleMode) = PhotoData(
+        bitmap = bitmap,
+        panX = panX,
+        panY = panY,
+        zoom = zoom,
+        scaleMode = effectiveMode(defaultMode)
+    )
 }
 
 // ─── Activity ────────────────────────────────────────────────────────────────
@@ -233,6 +241,28 @@ fun PicCollageApp() {
     val cells = cellsFor(selectedType, customGrid)
     val requiredCount = cells.size
     val previewBitmaps = List(requiredCount) { photos.getOrNull(it) }
+    val photoAspects = previewBitmaps.map { state ->
+        state?.bitmap?.let { bmp ->
+            if (bmp.height > 0) bmp.width.toFloat() / bmp.height else null
+        }
+    }
+    val autoRatio = computeAutoCanvasRatio(cells, photoAspects)
+
+    fun updateSettings(next: AppSettings) {
+        val modeChanged = next.scaleMode != settings.scaleMode
+        settings = next
+        SettingsStore.save(context, next)
+        if (modeChanged) {
+            photos.forEach { p ->
+                if (p != null) {
+                    p.scaleModeOverride = null
+                    p.panX = 0f
+                    p.panY = 0f
+                    p.zoom = 1f
+                }
+            }
+        }
+    }
 
     var activeIndexToFill by remember { mutableStateOf(-1) }
 
@@ -257,7 +287,8 @@ fun PicCollageApp() {
     if (showSettings) {
         SettingsDialog(
             settings = settings,
-            onChange = { settings = it; SettingsStore.save(context, it) },
+            autoRatio = autoRatio,
+            onChange = { updateSettings(it) },
             onDismiss = { showSettings = false }
         )
     }
@@ -371,7 +402,22 @@ fun PicCollageApp() {
                             fontSize = 11.sp,
                             modifier = Modifier.weight(1f)
                         )
-                        TextButton(onClick = { customGrid.resetLines() }) {
+                        val isSingleAxis = (customGrid.cols == 1 && customGrid.rows > 1) || (customGrid.rows == 1 && customGrid.cols > 1)
+                        if (isSingleAxis && photoAspects.any { it != null }) {
+                            TextButton(
+                                onClick = {
+                                    customGrid.fitStopsToPhotos(photoAspects)
+                                    updateSettings(settings.copy(aspect = AspectRatioOption.AUTO))
+                                },
+                                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
+                            ) {
+                                Text("Match photos", color = SettingsAccent, fontSize = 12.sp)
+                            }
+                        }
+                        TextButton(
+                            onClick = { customGrid.resetLines() },
+                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
+                        ) {
                             Text("Even out", color = Pink500, fontSize = 12.sp)
                         }
                     }
@@ -387,7 +433,7 @@ fun PicCollageApp() {
                     .padding(horizontal = 20.dp),
                 contentAlignment = Alignment.Center
             ) {
-                val ratio = settings.ratio
+                val ratio = settings.effectiveRatio(autoRatio)
                 val maxPreviewHeight = 520.dp
                 val previewWidth = if (maxWidth / ratio > maxPreviewHeight) maxPreviewHeight * ratio else maxWidth
                 SideEffect { previewWidthDp = previewWidth.value }
@@ -401,6 +447,7 @@ fun PicCollageApp() {
                     CollagePreview(
                         cells = cells,
                         photos = previewBitmaps,
+                        defaultScaleMode = settings.scaleMode,
                         borderPx = borderPx,
                         cornerRadius = settings.cornerRadius,
                         borderStyle = borderStyle,
@@ -418,17 +465,77 @@ fun PicCollageApp() {
                 }
             }
 
-            Spacer(Modifier.height(6.dp))
-            Text(
-                "${settings.ratioLabel} · ${settings.outputSize().width}×${settings.outputSize().height}",
-                color = Subtle,
-                fontSize = 11.sp,
+            Spacer(Modifier.height(8.dp))
+            val outSize = settings.outputSize(autoRatio = autoRatio)
+            val isFitDefault = settings.scaleMode == PhotoScaleMode.FIT
+            Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clickable { showSettings = true }
-                    .padding(horizontal = 20.dp, vertical = 2.dp),
-                textAlign = androidx.compose.ui.text.style.TextAlign.Center
-            )
+                    .padding(horizontal = 20.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(20.dp))
+                        .background(Dark700)
+                        .clickable { showSettings = true }
+                        .padding(horizontal = 12.dp, vertical = 6.dp)
+                ) {
+                    Text(
+                        "${settings.ratioLabel} · ${outSize.width}×${outSize.height}",
+                        color = Subtle,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
+                Row(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(20.dp))
+                        .background(if (isFitDefault) Pink500 else Dark700)
+                        .clickable {
+                            val nextMode = if (isFitDefault) PhotoScaleMode.FILL else PhotoScaleMode.FIT
+                            updateSettings(settings.copy(scaleMode = nextMode))
+                        }
+                        .padding(horizontal = 12.dp, vertical = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(5.dp)
+                ) {
+                    Icon(
+                        imageVector = if (isFitDefault) FitInsideIcon else ExpandFillIcon,
+                        contentDescription = "Toggle Fit or Fill",
+                        tint = if (isFitDefault) White else Subtle,
+                        modifier = Modifier.size(14.dp)
+                    )
+                    Text(
+                        if (isFitDefault) "Scale: Fit" else "Scale: Fill",
+                        color = if (isFitDefault) White else Subtle,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
+                if (settings.aspect != AspectRatioOption.AUTO && photoAspects.any { it != null }) {
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(20.dp))
+                            .background(Dark700)
+                            .clickable {
+                                if (selectedType == CollageType.CUSTOM) {
+                                    customGrid.fitStopsToPhotos(photoAspects)
+                                }
+                                updateSettings(settings.copy(aspect = AspectRatioOption.AUTO))
+                            }
+                            .padding(horizontal = 12.dp, vertical = 6.dp)
+                    ) {
+                        Text(
+                            "Auto Ratio",
+                            color = SettingsAccent,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+                }
+            }
 
             Spacer(Modifier.height(8.dp))
 
@@ -636,8 +743,8 @@ fun PicCollageApp() {
                             val uri = renderAndSaveCollage(
                                 context = context,
                                 cells = cells,
-                                photos = previewBitmaps.filterNotNull().map { it.toPhotoData() },
-                                outputSize = settings.outputSize(),
+                                photos = previewBitmaps.filterNotNull().map { it.toPhotoData(settings.scaleMode) },
+                                outputSize = settings.outputSize(autoRatio = autoRatio),
                                 borderPx = borderPx,
                                 cornerRadius = settings.cornerRadius,
                                 previewWidthDp = previewWidthDp,
@@ -764,6 +871,7 @@ fun LayoutThumbnail(cells: List<CellRect>, isSelected: Boolean) {
 fun CollagePreview(
     cells: List<CellRect>,
     photos: List<PhotoState?>,
+    defaultScaleMode: PhotoScaleMode,
     borderPx: Float,
     cornerRadius: Float,
     borderStyle: BorderStyle,
@@ -793,6 +901,7 @@ fun CollagePreview(
                 PhotoCellBox(
                     state = photos.getOrNull(i),
                     index = i,
+                    defaultScaleMode = defaultScaleMode,
                     cornerRadius = cornerRadius,
                     onAddPhoto = onAddPhoto,
                     onRemovePhoto = onRemovePhoto,
@@ -857,20 +966,49 @@ private fun GridHandle(vertical: Boolean) {
 fun PhotoCellBox(
     state: PhotoState?,
     index: Int,
+    defaultScaleMode: PhotoScaleMode,
     cornerRadius: Float,
     onAddPhoto: (Int) -> Unit,
     onRemovePhoto: (Int) -> Unit,
     modifier: Modifier
 ) {
-    Box(modifier = modifier.clip(RoundedCornerShape(cornerRadius.dp)).background(Dark700)) {
-        if (state != null) {
-            PhotoCell(state = state, modifier = Modifier.fillMaxSize())
+    val shape = RoundedCornerShape(cornerRadius.dp)
+    if (state != null) {
+        val mode = state.effectiveMode(defaultScaleMode)
+        val isFit = mode == PhotoScaleMode.FIT
+        Box(modifier = modifier) {
+            PhotoCell(
+                state = state,
+                scaleMode = mode,
+                cornerRadius = cornerRadius,
+                modifier = Modifier.fillMaxSize()
+            )
             Row(
                 modifier = Modifier
                     .align(Alignment.TopEnd)
                     .padding(6.dp),
-                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                horizontalArrangement = Arrangement.spacedBy(5.dp)
             ) {
+                Box(
+                    modifier = Modifier
+                        .size(24.dp)
+                        .clip(CircleShape)
+                        .background(if (isFit) Pink500.copy(alpha = 0.85f) else Color.Black.copy(alpha = 0.6f))
+                        .clickable {
+                            state.scaleModeOverride = if (isFit) PhotoScaleMode.FILL else PhotoScaleMode.FIT
+                            state.panX = 0f
+                            state.panY = 0f
+                            state.zoom = 1f
+                        },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = if (isFit) FitInsideIcon else ExpandFillIcon,
+                        contentDescription = if (isFit) "Switch to Fill" else "Switch to Fit",
+                        tint = Color.White,
+                        modifier = Modifier.size(14.dp)
+                    )
+                }
                 Box(
                     modifier = Modifier
                         .size(24.dp)
@@ -898,17 +1036,20 @@ fun PhotoCellBox(
                     Text("✕", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                 }
             }
-        } else {
+        }
+    } else {
+        Box(
+            modifier = modifier
+                .clip(shape)
+                .background(Dark700)
+                .clickable { onAddPhoto(index) },
+            contentAlignment = Alignment.Center
+        ) {
             Box(
-                modifier = Modifier.fillMaxSize().clickable { onAddPhoto(index) },
+                modifier = Modifier.size(40.dp).clip(CircleShape).background(Surface),
                 contentAlignment = Alignment.Center
             ) {
-                Box(
-                    modifier = Modifier.size(40.dp).clip(CircleShape).background(Surface),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text("＋", color = Pink500, fontSize = 22.sp)
-                }
+                Text("＋", color = Pink500, fontSize = 22.sp)
             }
         }
     }
@@ -1006,10 +1147,24 @@ fun ColorSpectrumPicker(
 }
 
 @Composable
-fun PhotoCell(state: PhotoState, modifier: Modifier) {
+fun PhotoCell(
+    state: PhotoState,
+    scaleMode: PhotoScaleMode,
+    cornerRadius: Float,
+    modifier: Modifier
+) {
     var canvasSize by remember { mutableStateOf(IntSize.Zero) }
     val bmp = state.bitmap
-    val imageBitmap = remember(bmp) { bmp.asImageBitmap() }
+    val shader = remember(bmp) {
+        android.graphics.BitmapShader(bmp, android.graphics.Shader.TileMode.CLAMP, android.graphics.Shader.TileMode.CLAMP)
+    }
+    val matrix = remember { android.graphics.Matrix() }
+    val paint = remember(shader) {
+        android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG or android.graphics.Paint.FILTER_BITMAP_FLAG).apply {
+            this.shader = shader
+        }
+    }
+    val currentScaleMode by rememberUpdatedState(scaleMode)
     Canvas(
         modifier = modifier
             .clipToBounds()
@@ -1021,16 +1176,20 @@ fun PhotoCell(state: PhotoState, modifier: Modifier) {
                         val b = state.bitmap
                         val newZoom = (state.zoom * zoom).coerceIn(1f, 5f)
                         state.zoom = newZoom
-                        val srcAspect = b.width.toFloat() / b.height
-                        val dstAspect = cw / ch
-                        val newW = if (srcAspect > dstAspect) b.height * dstAspect else b.width.toFloat()
-                        val newH = if (srcAspect > dstAspect) b.height.toFloat() else b.width / dstAspect
-                        val scaledW = (newW / newZoom).coerceAtLeast(1f)
-                        val scaledH = (newH / newZoom).coerceAtLeast(1f)
-                        val maxPanX = ((b.width - scaledW) / (2f * scaledW)).coerceAtLeast(0f)
-                        val maxPanY = ((b.height - scaledH) / (2f * scaledH)).coerceAtLeast(0f)
-                        state.panX = (state.panX + pan.x / cw).coerceIn(-maxPanX, maxPanX)
-                        state.panY = (state.panY + pan.y / ch).coerceIn(-maxPanY, maxPanY)
+                        val p = computePhotoPlacement(
+                            bmpW = b.width.toFloat(),
+                            bmpH = b.height.toFloat(),
+                            cellLeft = 0f,
+                            cellTop = 0f,
+                            cellWidth = cw,
+                            cellHeight = ch,
+                            mode = currentScaleMode,
+                            zoom = newZoom,
+                            panX = state.panX + pan.x / cw,
+                            panY = state.panY + pan.y / ch
+                        )
+                        state.panX = (state.panX + pan.x / cw).coerceIn(-p.maxPanX, p.maxPanX)
+                        state.panY = (state.panY + pan.y / ch).coerceIn(-p.maxPanY, p.maxPanY)
                     }
                 }
             }
@@ -1043,40 +1202,26 @@ fun PhotoCell(state: PhotoState, modifier: Modifier) {
         val bmpHeight = bmp.height.toFloat()
         if (bmpWidth <= 0f || bmpHeight <= 0f) return@Canvas
 
-        val srcAspect = bmpWidth / bmpHeight
-        val dstAspect = dstWidth / dstHeight
-
-        val newW: Float
-        val newH: Float
-        if (srcAspect > dstAspect) {
-            newW = bmpHeight * dstAspect
-            newH = bmpHeight
-        } else {
-            newW = bmpWidth
-            newH = bmpWidth / dstAspect
-        }
-
-        val scaledW = newW / state.zoom
-        val scaledH = newH / state.zoom
-
-        val dxOffset = state.panX * scaledW
-        val dyOffset = state.panY * scaledH
-
-        val dx = ((bmpWidth - scaledW) / 2) - dxOffset
-        val clampedDx = dx.coerceIn(0f, bmpWidth - scaledW)
-
-        val dy = ((bmpHeight - scaledH) / 2) - dyOffset
-        val clampedDy = dy.coerceIn(0f, bmpHeight - scaledH)
-
-        val srcOffset = IntOffset(clampedDx.toInt(), clampedDy.toInt())
-        val srcSize = IntSize(scaledW.toInt().coerceAtLeast(1), scaledH.toInt().coerceAtLeast(1))
-
-        drawImage(
-            image = imageBitmap,
-            srcOffset = srcOffset,
-            srcSize = srcSize,
-            dstOffset = IntOffset.Zero,
-            dstSize = canvasSize
+        val placement = computePhotoPlacement(
+            bmpW = bmpWidth,
+            bmpH = bmpHeight,
+            cellLeft = 0f,
+            cellTop = 0f,
+            cellWidth = dstWidth,
+            cellHeight = dstHeight,
+            mode = scaleMode,
+            zoom = state.zoom,
+            panX = state.panX,
+            panY = state.panY
         )
+        val src = android.graphics.RectF(placement.srcLeft, placement.srcTop, placement.srcRight, placement.srcBottom)
+        val dst = android.graphics.RectF(placement.dstLeft, placement.dstTop, placement.dstRight, placement.dstBottom)
+        matrix.setRectToRect(src, dst, android.graphics.Matrix.ScaleToFit.FILL)
+        shader.setLocalMatrix(matrix)
+        val rPx = cornerRadius.dp.toPx()
+        drawIntoCanvas { c ->
+            if (rPx > 0f) c.nativeCanvas.drawRoundRect(dst, rPx, rPx, paint)
+            else c.nativeCanvas.drawRect(dst, paint)
+        }
     }
 }
