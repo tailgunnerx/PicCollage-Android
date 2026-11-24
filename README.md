@@ -15,7 +15,7 @@ PicCollage is designed for speed, precision, and aesthetic control. Unlike many 
 ## ✨ Premium Features
 
 - **🎨 50 Dynamic Gradient Borders:** A massive library of Neon, Cyberpunk, Holographic, Luxury Metallics, Pastels, Botanicals, and Conical Sweep gradients.
-- **🎄 12 Procedural Holiday Borders:** Vector-drawn Candy Cane stripes, Snowy Pine snowflakes & holly, Spooky Night crescent moons & bats, Valentine hearts, St. Patrick's shamrocks, Easter Egg patterns, 4th of July stars, Thanksgiving tartan plaid, Hanukkah Stars of David, and New Year's glam confetti.
+- **🎨 24 Procedural Themed Borders:** Vector-drawn skulls & crossbones, gothic cobwebs, ghosts, Beach Vibes waves, Tropical palms, Camping pines & tents, Baby Blue & Baby Pink clouds, Pet Paws, Celestial planets, Checkerboard, and seasonal classics.
 - **📐 11 Pro Layouts + Custom Grid Builder:** Includes `3×3` grid plus a custom builder where you choose rows & columns and drag the divider lines.
 - **📲 Flexible Aspect Ratios:** Square (`1:1`), Portrait (`4:5`, `3:4`, `2:3`), Story (`9:16`), Landscape (`5:4`, `4:3`, `3:2`), Wide (`16:9`), or any Custom `W:H` ratio.
 - **🖼️ Slot-Based Photo Management:** Pinch-to-zoom, pan, rotate 90°, or remove individual photos directly in the live preview.

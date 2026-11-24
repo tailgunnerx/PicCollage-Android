@@ -67,8 +67,8 @@ suspend fun renderAndSaveCollage(
             val p = Paint().apply { this.shader = shader }
             canvas.drawRect(0f, 0f, W.toFloat(), H.toFloat(), p)
         }
-        is BorderStyle.HolidayPattern -> {
-            drawHolidayBackground(canvas, W.toFloat(), H.toFloat(), style.theme)
+        is BorderStyle.ThemedPattern -> {
+            drawThemedBackground(canvas, W.toFloat(), H.toFloat(), style.theme)
         }
     }
 

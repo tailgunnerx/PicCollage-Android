@@ -1,5 +1,5 @@
 • Settings popup with Portrait, Landscape, Story, Wide & Custom W:H aspect ratios (#1)
 • Grid 3×3 preset & Custom grid builder with draggable row and column lines (#2)
 • Photo Corners slider (0 = square corners), Export quality (up to 2160p) & Show Emojis toggle (#1)
-• Expanded Gradient Borders to 50 presets + new Holiday Borders drawer with 12 vector themes
+• Expanded Gradient Borders to 50 presets + new Themed Borders drawer with 24 vector designs
 • In-app Changelog & GitHub Repository link
