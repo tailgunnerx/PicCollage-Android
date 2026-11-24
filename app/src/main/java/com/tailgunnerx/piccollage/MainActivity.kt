@@ -67,7 +67,7 @@ val Surface   = Color(0xFF242435)
 val Subtle    = Color(0xFF9090A8)
 val White     = Color(0xFFFFFFFF)
 
-enum class GradientDir { DIAGONAL, REVERSE_DIAGONAL, TOP_BOTTOM, LEFT_RIGHT, RADIAL_CENTER, RADIAL_CORNER }
+enum class GradientDir { DIAGONAL, REVERSE_DIAGONAL, TOP_BOTTOM, LEFT_RIGHT, RADIAL_CENTER, RADIAL_CORNER, SWEEP }
 
 sealed class BorderStyle {
     data class SolidColor(val color: Color) : BorderStyle()
@@ -117,6 +117,7 @@ fun BorderStyle.GradientPattern.toBrush(radialCornerRadius: Float): Brush = when
     GradientDir.REVERSE_DIAGONAL -> Brush.linearGradient(colors, start = Offset(Float.POSITIVE_INFINITY, 0f), end = Offset(0f, Float.POSITIVE_INFINITY))
     GradientDir.RADIAL_CENTER -> Brush.radialGradient(colors)
     GradientDir.RADIAL_CORNER -> Brush.radialGradient(colors, center = Offset(0f, 0f), radius = radialCornerRadius)
+    GradientDir.SWEEP -> Brush.sweepGradient(colors)
     else -> Brush.linearGradient(colors)
 }
 
@@ -148,7 +149,32 @@ val GradientPatterns = listOf(
         BorderStyle.GradientPattern(listOf(Color(0xFF1A1A1A), Color(0xFF32CD32), Color(0xFF00CED1), Color(0xFF1A1A1A)), "Cyber Lime", GradientDir.LEFT_RIGHT),
         BorderStyle.GradientPattern(listOf(Color(0xFFFF4E50), Color(0xFFFC913A), Color(0xFFF9D423), Color(0xFFEDE574)), "Sunset Silk", GradientDir.TOP_BOTTOM),
         BorderStyle.GradientPattern(listOf(Color(0xFF000428), Color(0xFF004e92), Color(0xFF0083B0), Color(0xFF00B4DB)), "Oceanic Drift", GradientDir.REVERSE_DIAGONAL),
-        BorderStyle.GradientPattern(listOf(Color(0xFF000000), Color(0xFF4B0000), Color(0xFFB22222), Color(0xFFFF4500), Color(0xFFFFD700)), "Solar Eclipse", GradientDir.RADIAL_CENTER)
+        BorderStyle.GradientPattern(listOf(Color(0xFF000000), Color(0xFF4B0000), Color(0xFFB22222), Color(0xFFFF4500), Color(0xFFFFD700)), "Solar Eclipse", GradientDir.RADIAL_CENTER),
+        // 24 v1.1 luxury, pastel, botanical, metallic & conical sweep gradients (50 total)
+        BorderStyle.GradientPattern(listOf(Color(0xFF062C1E), Color(0xFF0F6B4A), Color(0xFF2ECC71), Color(0xFFD4AF37), Color(0xFFF9E79F)), "Emerald Gold", GradientDir.DIAGONAL),
+        BorderStyle.GradientPattern(listOf(Color(0xFFFFF0F5), Color(0xFFFFC1CC), Color(0xFFFF8DA1), Color(0xFFE75480), Color(0xFFFFD1DC)), "Sakura Bloom", GradientDir.TOP_BOTTOM),
+        BorderStyle.GradientPattern(listOf(Color(0xFF0A0A0F), Color(0xFF1C1C28), Color(0xFF8E6E2F), Color(0xFFD4AF37), Color(0xFFFFF1A8), Color(0xFF1C1C28)), "Midnight Gold", GradientDir.REVERSE_DIAGONAL),
+        BorderStyle.GradientPattern(listOf(Color(0xFFFFFBF0), Color(0xFFF7E7CE), Color(0xFFEAD2AC), Color(0xFFD4B895), Color(0xFFFFF8E7)), "Champagne Pearl", GradientDir.DIAGONAL),
+        BorderStyle.GradientPattern(listOf(Color(0xFF2C3E50), Color(0xFF7F8C8D), Color(0xFFECF0F1), Color(0xFFBDC3C7), Color(0xFF34495E), Color(0xFFECF0F1)), "Brushed Silver", GradientDir.LEFT_RIGHT),
+        BorderStyle.GradientPattern(listOf(Color(0xFF3E1F0D), Color(0xFFB87333), Color(0xFFE59866), Color(0xFF48C9B0), Color(0xFF1ABC9C)), "Copper Patina", GradientDir.DIAGONAL),
+        BorderStyle.GradientPattern(listOf(Color(0xFFF4F9E9), Color(0xFFC8E6C9), Color(0xFF81C784), Color(0xFF4CAF50), Color(0xFFE8F5E9)), "Matcha Latte", GradientDir.TOP_BOTTOM),
+        BorderStyle.GradientPattern(listOf(Color(0xFFF3E5F5), Color(0xFFE1BEE7), Color(0xFFCE93D8), Color(0xFF9575CD), Color(0xFFD1C4E9)), "Lavender Mist", GradientDir.DIAGONAL),
+        BorderStyle.GradientPattern(listOf(Color(0xFFFFF3E0), Color(0xFFFFCCBC), Color(0xFFFF8A65), Color(0xFFFF7043), Color(0xFFFFAB91)), "Peach Sorbet", GradientDir.LEFT_RIGHT),
+        BorderStyle.GradientPattern(listOf(Color(0xFFFF5252), Color(0xFFD50000), Color(0xFF8E0000), Color(0xFF3B0000), Color(0xFF1A0000)), "Crimson Velvet", GradientDir.RADIAL_CENTER),
+        BorderStyle.GradientPattern(listOf(Color(0xFF03045E), Color(0xFF023E8A), Color(0xFF0077B6), Color(0xFF00B4D8), Color(0xFF90E0EF)), "Royal Sapphire", GradientDir.REVERSE_DIAGONAL),
+        BorderStyle.GradientPattern(listOf(Color(0xFF4A1208), Color(0xFF9B2226), Color(0xFFCA6702), Color(0xFFEE9B00), Color(0xFFE9D8A6)), "Autumn Maple", GradientDir.DIAGONAL),
+        BorderStyle.GradientPattern(listOf(Color(0xFFF4E1D2), Color(0xFFE07A5F), Color(0xFFC85A32), Color(0xFF81B29A), Color(0xFFF2CC8F)), "Desert Terracotta", GradientDir.TOP_BOTTOM),
+        BorderStyle.GradientPattern(listOf(Color(0xFF081C15), Color(0xFF1B4332), Color(0xFF2D6A4F), Color(0xFF52B788), Color(0xFF95D5B2)), "Forest Canopy", GradientDir.TOP_BOTTOM),
+        BorderStyle.GradientPattern(listOf(Color(0xFFEDF2F4), Color(0xFFCFD8DC), Color(0xFF90A4AE), Color(0xFF546E7A), Color(0xFF263238)), "Nordic Frost", GradientDir.DIAGONAL),
+        BorderStyle.GradientPattern(listOf(Color(0xFF1B0F0A), Color(0xFF3E2723), Color(0xFF6D4C41), Color(0xFFA1887F), Color(0xFFD7CCC8)), "Espresso Roast", GradientDir.REVERSE_DIAGONAL),
+        BorderStyle.GradientPattern(listOf(Color(0xFFF8E8FF), Color(0xFFD05CE3), Color(0xFF8E24AA), Color(0xFF4A148C), Color(0xFF1A0033)), "Amethyst Crystal", GradientDir.RADIAL_CORNER),
+        BorderStyle.GradientPattern(listOf(Color(0xFFFF1E56), Color(0xFFFF6B81), Color(0xFFFFF59D), Color(0xFF2ED573), Color(0xFF00A86B)), "Watermelon Pop", GradientDir.LEFT_RIGHT),
+        BorderStyle.GradientPattern(listOf(Color(0xFFFF71CE), Color(0xFF01CDFE), Color(0xFF05FFA1), Color(0xFFB967FF), Color(0xFFFFFB96)), "Vaporwave Mall", GradientDir.TOP_BOTTOM),
+        BorderStyle.GradientPattern(listOf(Color(0xFFFF8A65), Color(0xFFE53935), Color(0xFF880E4F), Color(0xFF311B92), Color(0xFF070510)), "Blood Moon", GradientDir.RADIAL_CENTER),
+        BorderStyle.GradientPattern(listOf(Color(0xFF80FFDB), Color(0xFF00F5D4), Color(0xFF00BBF9), Color(0xFF0A1128), Color(0xFF000814)), "Bioluminescence", GradientDir.RADIAL_CENTER),
+        BorderStyle.GradientPattern(listOf(Color(0xFFFF1744), Color(0xFFFF9100), Color(0xFFFFEA00), Color(0xFF00E676), Color(0xFF00E5FF), Color(0xFF2979FF), Color(0xFFD500F9), Color(0xFFFF1744)), "Color Wheel", GradientDir.SWEEP),
+        BorderStyle.GradientPattern(listOf(Color(0xFFFFC8DD), Color(0xFFBDE0FE), Color(0xFFCFFAFE), Color(0xFFD8F3DC), Color(0xFFFEF9C3), Color(0xFFE9D5FF), Color(0xFFFFC8DD)), "Iridescent Pearl", GradientDir.SWEEP),
+        BorderStyle.GradientPattern(listOf(Color(0xFF000000), Color(0xFF3A3A3A), Color(0xFFFFFFFF), Color(0xFF555555), Color(0xFF0A0A0A)), "Noir Monochrome", GradientDir.DIAGONAL)
 )
 
 // ─── Root composable ─────────────────────────────────────────────────────────
@@ -468,7 +494,13 @@ fun PicCollageApp() {
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(settings.e("✨", "Gradient Borders"), color = White, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                val activeGradLabel = (borderStyle as? BorderStyle.GradientPattern)?.label
+                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
+                    Text(settings.e("✨", "Gradient Borders (${GradientPatterns.size})"), color = White, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                    if (activeGradLabel != null) {
+                        Text("  ·  $activeGradLabel", color = Pink500, fontSize = 12.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    }
+                }
                 Text(if (showGradients) "▲" else "▼", color = Subtle, fontSize = 11.sp)
             }
             androidx.compose.animation.AnimatedVisibility(visible = showGradients) {
@@ -483,7 +515,7 @@ fun PicCollageApp() {
                             modifier = Modifier
                                 .size(38.dp)
                                 .clip(CircleShape)
-                                .background(p.toBrush(radialCornerRadius = 200f))
+                                .background(p.toBrush(radialCornerRadius = 110f))
                                 .border(2.dp, if (isSel) White else Color(0x44FFFFFF), CircleShape)
                                 .clickable { borderStyle = p }
                         )
@@ -628,15 +660,15 @@ fun CollagePreview(
     onRemovePhoto: (Int) -> Unit
 ) {
     BoxWithConstraints(Modifier.fillMaxSize()) {
-        when (val style = borderStyle) {
-            is BorderStyle.SolidColor -> Spacer(Modifier.fillMaxSize().background(style.color))
-            is BorderStyle.GradientPattern -> Spacer(Modifier.fillMaxSize().background(style.toBrush(radialCornerRadius = 800f)))
-        }
-
         val density = LocalDensity.current
         val wPx = constraints.maxWidth.toFloat()
         val hPx = constraints.maxHeight.toFloat()
         val gapPx = with(density) { borderPx.dp.toPx() }
+
+        when (val style = borderStyle) {
+            is BorderStyle.SolidColor -> Spacer(Modifier.fillMaxSize().background(style.color))
+            is BorderStyle.GradientPattern -> Spacer(Modifier.fillMaxSize().background(style.toBrush(radialCornerRadius = maxOf(wPx, hPx))))
+        }
 
         cells.forEachIndexed { i, cell ->
             val r = cell.toPx(wPx, hPx, gapPx)

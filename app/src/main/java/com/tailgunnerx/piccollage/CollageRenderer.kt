@@ -61,6 +61,7 @@ suspend fun renderAndSaveCollage(
                 GradientDir.REVERSE_DIAGONAL -> android.graphics.LinearGradient(W.toFloat(), 0f, 0f, H.toFloat(), colors, positions, Shader.TileMode.CLAMP)
                 GradientDir.RADIAL_CENTER -> android.graphics.RadialGradient(W / 2f, H / 2f, maxOf(W, H) / 2f, colors, positions, Shader.TileMode.CLAMP)
                 GradientDir.RADIAL_CORNER -> android.graphics.RadialGradient(0f, 0f, maxOf(W, H).toFloat(), colors, positions, Shader.TileMode.CLAMP)
+                GradientDir.SWEEP -> android.graphics.SweepGradient(W / 2f, H / 2f, colors, positions)
                 else -> android.graphics.LinearGradient(0f, 0f, W.toFloat(), H.toFloat(), colors, positions, Shader.TileMode.CLAMP)
             }
             val p = Paint().apply { this.shader = shader }

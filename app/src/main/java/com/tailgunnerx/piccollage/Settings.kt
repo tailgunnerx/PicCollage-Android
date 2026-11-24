@@ -44,6 +44,7 @@ val CHANGELOG = listOf(
             "• Added Photo Corners slider (0 = square corners) rendered identically in preview & saved image (#1)\n" +
             "• Added Export Resolution selector (Standard 1080p, High 1440p, Ultra 2160p)\n" +
             "• Added Show Emojis toggle for a clean text-only interface (#1)\n" +
+            "• Expanded Gradient Borders library to 50 presets (added luxury metallics, pastels, botanicals & conical sweeps)\n" +
             "• Unified fractional layout engine & smart photo downsampling for 9+ photo grids\n" +
             "• Added in-app Changelog & GitHub Repository link"
     ),
