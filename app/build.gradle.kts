@@ -19,6 +19,10 @@ android {
     }
 
     buildTypes {
+        debug {
+            // Lets debug builds install side-by-side with the signed release build.
+            applicationIdSuffix = ".debug"
+        }
         release {
             isMinifyEnabled = false
             proguardFiles(
