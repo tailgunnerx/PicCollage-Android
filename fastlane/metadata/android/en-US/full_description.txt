@@ -2,6 +2,7 @@ A high-performance, native Android photo collage studio built entirely with Jetp
 
 Features:
 - 🎨 50 Dynamic Gradient Borders: Neon, Cyberpunk, Holographic, Luxury Metallics, Pastels, Botanicals, and Conical Sweeps.
+- 🎄 12 Procedural Holiday Borders: Crisp Candy Cane stripes, Snowy Pine, Spooky Night, Sweetheart, Lucky Clover, Easter Egg, Star-Spangled, Harvest Plaid, Hanukkah, and New Year's confetti.
 - 📐 11 Pro Layouts + Custom Grid Builder: Including 3×3 grid and draggable row/column lines.
 - 🖼️ Flexible Aspect Ratios: Square, Portrait, Landscape, Story (9:16), Wide (16:9), or Custom W:H.
 - 🔲 Customizable Photo Corners & Borders: Precision sliders for border width and square-to-rounded corners.

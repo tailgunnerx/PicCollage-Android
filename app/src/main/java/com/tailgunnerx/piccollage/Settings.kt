@@ -45,6 +45,7 @@ val CHANGELOG = listOf(
             "• Added Export Resolution selector (Standard 1080p, High 1440p, Ultra 2160p)\n" +
             "• Added Show Emojis toggle for a clean text-only interface (#1)\n" +
             "• Expanded Gradient Borders library to 50 presets (added luxury metallics, pastels, botanicals & conical sweeps)\n" +
+            "• Added Holiday Borders drawer with 12 procedural vector designs (Christmas, Halloween, Valentine's, Easter, 4th of July, Thanksgiving, Hanukkah, New Year's & St. Patrick's)\n" +
             "• Unified fractional layout engine & smart photo downsampling for 9+ photo grids\n" +
             "• Added in-app Changelog & GitHub Repository link"
     ),

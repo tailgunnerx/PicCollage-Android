@@ -39,6 +39,8 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
+import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
@@ -72,6 +74,7 @@ enum class GradientDir { DIAGONAL, REVERSE_DIAGONAL, TOP_BOTTOM, LEFT_RIGHT, RAD
 sealed class BorderStyle {
     data class SolidColor(val color: Color) : BorderStyle()
     data class GradientPattern(val colors: List<Color>, val label: String, val dir: GradientDir = GradientDir.DIAGONAL) : BorderStyle()
+    data class HolidayPattern(val theme: HolidayTheme) : BorderStyle()
 }
 
 val AppGradient = Brush.linearGradient(listOf(Pink500, Purple600))
@@ -523,6 +526,76 @@ fun PicCollageApp() {
                 }
             }
 
+            // ── Holiday Borders ──────────────────────────────────────────────
+            var showHolidays by remember { mutableStateOf(false) }
+            Spacer(Modifier.height(8.dp))
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(Dark700)
+                    .clickable { showHolidays = !showHolidays }
+                    .padding(horizontal = 16.dp, vertical = 10.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                val activeHoliday = (borderStyle as? BorderStyle.HolidayPattern)?.theme
+                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
+                    Text(settings.e("🎄", "Holiday Borders (${HolidayTheme.entries.size})"), color = White, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                    if (activeHoliday != null) {
+                        val tag = if (settings.showEmojis) "${activeHoliday.emoji} ${activeHoliday.label}" else activeHoliday.label
+                        Text("  ·  $tag", color = Pink500, fontSize = 12.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    }
+                }
+                Text(if (showHolidays) "▲" else "▼", color = Subtle, fontSize = 11.sp)
+            }
+            androidx.compose.animation.AnimatedVisibility(visible = showHolidays) {
+                LazyRow(
+                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    items(HolidayTheme.entries) { theme ->
+                        val isSel = (borderStyle as? BorderStyle.HolidayPattern)?.theme == theme
+                        Column(
+                            modifier = Modifier
+                                .width(76.dp)
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(if (isSel) Pink500.copy(alpha = 0.25f) else Dark800)
+                                .border(2.dp, if (isSel) Pink500 else Color(0x33FFFFFF), RoundedCornerShape(12.dp))
+                                .clickable {
+                                    borderStyle = BorderStyle.HolidayPattern(theme)
+                                    if (borderPx < 12f) borderPx = 16f
+                                }
+                                .padding(6.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Canvas(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(42.dp)
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .clipToBounds()
+                            ) {
+                                drawIntoCanvas { c ->
+                                    drawHolidayBackground(c.nativeCanvas, size.width, size.height, theme, patternScale = 2.6f)
+                                }
+                            }
+                            Spacer(Modifier.height(5.dp))
+                            Text(
+                                text = if (settings.showEmojis) "${theme.emoji} ${theme.label}" else theme.label,
+                                color = White,
+                                fontSize = 9.sp,
+                                fontWeight = FontWeight.Medium,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                    }
+                }
+            }
+
             } // Close scrollable Column
 
             // ── Action buttons ───────────────────────────────────────────────
@@ -668,6 +741,11 @@ fun CollagePreview(
         when (val style = borderStyle) {
             is BorderStyle.SolidColor -> Spacer(Modifier.fillMaxSize().background(style.color))
             is BorderStyle.GradientPattern -> Spacer(Modifier.fillMaxSize().background(style.toBrush(radialCornerRadius = maxOf(wPx, hPx))))
+            is BorderStyle.HolidayPattern -> Canvas(Modifier.fillMaxSize().clipToBounds()) {
+                drawIntoCanvas { c ->
+                    drawHolidayBackground(c.nativeCanvas, size.width, size.height, style.theme)
+                }
+            }
         }
 
         cells.forEachIndexed { i, cell ->
