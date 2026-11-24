@@ -1,11 +1,16 @@
 package com.tailgunnerx.piccollage
 
+import android.Manifest
 import android.content.Context
+import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.media.ExifInterface
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.widget.Toast
+import androidx.core.content.ContextCompat
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
@@ -111,7 +116,26 @@ fun decodeSampledBitmap(context: Context, uri: Uri, maxDim: Int = 2400): Bitmap?
     var sample = 1
     while (maxOf(bounds.outWidth, bounds.outHeight) / sample > maxDim) sample *= 2
     val opts = BitmapFactory.Options().apply { inSampleSize = sample }
-    return context.contentResolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, opts) }
+    val raw = context.contentResolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, opts) } ?: return null
+
+    val orientation = runCatching {
+        context.contentResolver.openInputStream(uri)?.use {
+            ExifInterface(it).getAttributeInt(ExifInterface.TAG_ORIENTATION, ExifInterface.ORIENTATION_NORMAL)
+        }
+    }.getOrNull() ?: ExifInterface.ORIENTATION_NORMAL
+
+    val matrix = android.graphics.Matrix()
+    when (orientation) {
+        ExifInterface.ORIENTATION_ROTATE_90 -> matrix.postRotate(90f)
+        ExifInterface.ORIENTATION_ROTATE_180 -> matrix.postRotate(180f)
+        ExifInterface.ORIENTATION_ROTATE_270 -> matrix.postRotate(270f)
+        ExifInterface.ORIENTATION_FLIP_HORIZONTAL -> matrix.preScale(-1f, 1f)
+        ExifInterface.ORIENTATION_FLIP_VERTICAL -> matrix.preScale(1f, -1f)
+        ExifInterface.ORIENTATION_TRANSPOSE -> { matrix.postRotate(90f); matrix.preScale(-1f, 1f) }
+        ExifInterface.ORIENTATION_TRANSVERSE -> { matrix.postRotate(270f); matrix.preScale(-1f, 1f) }
+        else -> return raw
+    }
+    return Bitmap.createBitmap(raw, 0, 0, raw.width, raw.height, matrix, true)
 }
 
 fun BorderStyle.GradientPattern.toBrush(radialCornerRadius: Float): Brush = when (dir) {
@@ -605,36 +629,51 @@ fun PicCollageApp() {
             ) {
                 // Save collage
                 val canSave = previewBitmaps.all { it != null } && !isSaving
+                val doSave: () -> Unit = {
+                    scope.launch {
+                        isSaving = true
+                        try {
+                            val uri = renderAndSaveCollage(
+                                context = context,
+                                cells = cells,
+                                photos = previewBitmaps.filterNotNull().map { it.toPhotoData() },
+                                outputSize = settings.outputSize(),
+                                borderPx = borderPx,
+                                cornerRadius = settings.cornerRadius,
+                                previewWidthDp = previewWidthDp,
+                                borderStyle = borderStyle
+                            )
+                            withContext(Dispatchers.Main) {
+                                if (uri != null) {
+                                    Toast.makeText(context, settings.e("✅", "Saved to Pictures/PicCollage!"), Toast.LENGTH_SHORT).show()
+                                } else {
+                                    Toast.makeText(context, settings.e("❌", "Save failed"), Toast.LENGTH_SHORT).show()
+                                }
+                            }
+                        } catch (e: Exception) {
+                            withContext(Dispatchers.Main) {
+                                Toast.makeText(context, settings.e("❌", "Save failed: ${e.message}"), Toast.LENGTH_SHORT).show()
+                            }
+                        } finally {
+                            isSaving = false
+                        }
+                    }
+                }
+                val writePermLauncher = rememberLauncherForActivityResult(
+                    contract = ActivityResultContracts.RequestPermission()
+                ) { granted ->
+                    if (granted) doSave()
+                    else Toast.makeText(context, "Storage permission is needed to save collages", Toast.LENGTH_SHORT).show()
+                }
                 Button(
                     onClick = {
                         if (!canSave) return@Button
-                        scope.launch {
-                            isSaving = true
-                            try {
-                                val uri = renderAndSaveCollage(
-                                    context = context,
-                                    cells = cells,
-                                    photos = previewBitmaps.filterNotNull().map { it.toPhotoData() },
-                                    outputSize = settings.outputSize(),
-                                    borderPx = borderPx,
-                                    cornerRadius = settings.cornerRadius,
-                                    previewWidthDp = previewWidthDp,
-                                    borderStyle = borderStyle
-                                )
-                                withContext(Dispatchers.Main) {
-                                    if (uri != null) {
-                                        Toast.makeText(context, settings.e("✅", "Saved to Pictures/PicCollage!"), Toast.LENGTH_SHORT).show()
-                                    } else {
-                                        Toast.makeText(context, settings.e("❌", "Save failed"), Toast.LENGTH_SHORT).show()
-                                    }
-                                }
-                            } catch (e: Exception) {
-                                withContext(Dispatchers.Main) {
-                                    Toast.makeText(context, settings.e("❌", "Save failed: ${e.message}"), Toast.LENGTH_SHORT).show()
-                                }
-                            } finally {
-                                isSaving = false
-                            }
+                        if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.P &&
+                            ContextCompat.checkSelfPermission(context, Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED
+                        ) {
+                            writePermLauncher.launch(Manifest.permission.WRITE_EXTERNAL_STORAGE)
+                        } else {
+                            doSave()
                         }
                     },
                     enabled = canSave,
@@ -969,25 +1008,40 @@ fun ColorSpectrumPicker(
 @Composable
 fun PhotoCell(state: PhotoState, modifier: Modifier) {
     var canvasSize by remember { mutableStateOf(IntSize.Zero) }
+    val bmp = state.bitmap
+    val imageBitmap = remember(bmp) { bmp.asImageBitmap() }
     Canvas(
         modifier = modifier
             .clipToBounds()
             .pointerInput(state) {
                 detectTransformGestures { _, pan, zoom, _ ->
-                    if (canvasSize.width > 0 && canvasSize.height > 0) {
-                        state.zoom = (state.zoom * zoom).coerceIn(1f, 5f)
-                        state.panX += pan.x / canvasSize.width
-                        state.panY += pan.y / canvasSize.height
+                    val cw = canvasSize.width.toFloat()
+                    val ch = canvasSize.height.toFloat()
+                    if (cw > 0f && ch > 0f) {
+                        val b = state.bitmap
+                        val newZoom = (state.zoom * zoom).coerceIn(1f, 5f)
+                        state.zoom = newZoom
+                        val srcAspect = b.width.toFloat() / b.height
+                        val dstAspect = cw / ch
+                        val newW = if (srcAspect > dstAspect) b.height * dstAspect else b.width.toFloat()
+                        val newH = if (srcAspect > dstAspect) b.height.toFloat() else b.width / dstAspect
+                        val scaledW = (newW / newZoom).coerceAtLeast(1f)
+                        val scaledH = (newH / newZoom).coerceAtLeast(1f)
+                        val maxPanX = ((b.width - scaledW) / (2f * scaledW)).coerceAtLeast(0f)
+                        val maxPanY = ((b.height - scaledH) / (2f * scaledH)).coerceAtLeast(0f)
+                        state.panX = (state.panX + pan.x / cw).coerceIn(-maxPanX, maxPanX)
+                        state.panY = (state.panY + pan.y / ch).coerceIn(-maxPanY, maxPanY)
                     }
                 }
             }
     ) {
-        canvasSize = IntSize(size.width.toInt(), size.height.toInt())
-        val bmp = state.bitmap
-        val bmpWidth = bmp.width.toFloat()
-        val bmpHeight = bmp.height.toFloat()
         val dstWidth = size.width
         val dstHeight = size.height
+        if (dstWidth <= 0f || dstHeight <= 0f) return@Canvas
+        canvasSize = IntSize(dstWidth.toInt(), dstHeight.toInt())
+        val bmpWidth = bmp.width.toFloat()
+        val bmpHeight = bmp.height.toFloat()
+        if (bmpWidth <= 0f || bmpHeight <= 0f) return@Canvas
 
         val srcAspect = bmpWidth / bmpHeight
         val dstAspect = dstWidth / dstHeight
@@ -1015,10 +1069,10 @@ fun PhotoCell(state: PhotoState, modifier: Modifier) {
         val clampedDy = dy.coerceIn(0f, bmpHeight - scaledH)
 
         val srcOffset = IntOffset(clampedDx.toInt(), clampedDy.toInt())
-        val srcSize = IntSize(scaledW.toInt(), scaledH.toInt())
-        
+        val srcSize = IntSize(scaledW.toInt().coerceAtLeast(1), scaledH.toInt().coerceAtLeast(1))
+
         drawImage(
-            image = bmp.asImageBitmap(),
+            image = imageBitmap,
             srcOffset = srcOffset,
             srcSize = srcSize,
             dstOffset = IntOffset.Zero,

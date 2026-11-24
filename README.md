@@ -25,7 +25,7 @@ PicCollage is designed for speed, precision, and aesthetic control. Unlike many 
 ## 📱 Specifications
 - **Package ID:** `com.tailgunnerx.piccollage`
 - **License:** [Apache License 2.0](LICENSE)
-- **OS:** Android 8.0+ (API 26+)
+- **OS:** Android 7.0+ (API 24+)
 - **Device Type:** Optimized for Android Phones (Portrait Mode)
 
 ## 🔒 Privacy & Transparency

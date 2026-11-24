@@ -9,6 +9,7 @@ import android.graphics.Matrix
 import android.graphics.Paint
 import android.graphics.RectF
 import android.graphics.Shader
+import android.media.MediaScannerConnection
 import android.net.Uri
 import android.os.Build
 import android.os.Environment
@@ -17,7 +18,6 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.unit.IntSize
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import java.io.OutputStream
 
 data class PhotoData(
     val bitmap: Bitmap,
@@ -77,7 +77,9 @@ suspend fun renderAndSaveCollage(
     val radius = cornerRadius * scale
 
     fun drawPhoto(state: PhotoData, dst: RectF) {
+        if (dst.width() <= 0f || dst.height() <= 0f) return
         val bmp = state.bitmap
+        if (bmp.width <= 0 || bmp.height <= 0) return
         // Scale-to-fill (center crop), then apply the user's zoom/pan.
         val srcAspect = bmp.width.toFloat() / bmp.height
         val dstAspect = dst.width() / dst.height()
@@ -117,27 +119,42 @@ suspend fun renderAndSaveCollage(
     // Save to gallery
     val filename = "PicCollage_${System.currentTimeMillis()}.jpg"
     val mimeType = "image/jpeg"
-    val stream: OutputStream?
-    val uri: Uri?
 
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-        val values = ContentValues().apply {
-            put(MediaStore.Images.Media.DISPLAY_NAME, filename)
-            put(MediaStore.Images.Media.MIME_TYPE, mimeType)
-            put(MediaStore.Images.Media.RELATIVE_PATH, Environment.DIRECTORY_PICTURES + "/PicCollage")
+    try {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            val values = ContentValues().apply {
+                put(MediaStore.Images.Media.DISPLAY_NAME, filename)
+                put(MediaStore.Images.Media.MIME_TYPE, mimeType)
+                put(MediaStore.Images.Media.RELATIVE_PATH, Environment.DIRECTORY_PICTURES + "/PicCollage")
+                put(MediaStore.Images.Media.IS_PENDING, 1)
+            }
+            val resolver = context.contentResolver
+            val uri = resolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values) ?: return@withContext null
+            val ok = resolver.openOutputStream(uri)?.use { out ->
+                output.compress(Bitmap.CompressFormat.JPEG, 95, out)
+            } ?: false
+            if (!ok) {
+                resolver.delete(uri, null, null)
+                return@withContext null
+            }
+            val done = ContentValues().apply { put(MediaStore.Images.Media.IS_PENDING, 0) }
+            resolver.update(uri, done, null, null)
+            uri
+        } else {
+            @Suppress("DEPRECATION")
+            val dir = java.io.File(
+                Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES),
+                "PicCollage"
+            ).apply { mkdirs() }
+            val file = java.io.File(dir, filename)
+            val ok = java.io.FileOutputStream(file).use { out ->
+                output.compress(Bitmap.CompressFormat.JPEG, 95, out)
+            }
+            if (!ok) return@withContext null
+            MediaScannerConnection.scanFile(context, arrayOf(file.absolutePath), arrayOf(mimeType), null)
+            Uri.fromFile(file)
         }
-        uri = context.contentResolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values)
-        stream = uri?.let { context.contentResolver.openOutputStream(it) }
-    } else {
-        val dir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES)
-        val file = java.io.File(dir, filename)
-        stream = java.io.FileOutputStream(file)
-        uri = Uri.fromFile(file)
+    } finally {
+        output.recycle()
     }
-
-    stream?.use { out ->
-        output.compress(Bitmap.CompressFormat.JPEG, 95, out)
-    }
-    output.recycle()
-    uri
 }
