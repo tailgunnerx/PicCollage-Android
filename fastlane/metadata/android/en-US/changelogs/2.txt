@@ -1,0 +1,6 @@
+• Settings popup window with Portrait, Landscape, Story, Wide & Custom W:H aspect ratios (#1)
+• Grid 3×3 preset & Custom grid builder with draggable row and column lines (#2)
+• Photo Corners slider (0 = square corners) applied to both preview & saved image (#1)
+• Export resolution selector (1080p / 1440p / 2160p) & Show Emojis toggle (#1)
+• Smart photo downsampling for 9+ photo grids & unified layout engine
+• In-app Changelog & GitHub Repository link

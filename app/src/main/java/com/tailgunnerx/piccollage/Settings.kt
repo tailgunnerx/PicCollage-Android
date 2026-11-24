@@ -1,6 +1,8 @@
 package com.tailgunnerx.piccollage
 
 import android.content.Context
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -11,7 +13,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -19,6 +21,7 @@ import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.IntSize
@@ -27,6 +30,29 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import kotlin.math.roundToInt
+
+const val GITHUB_URL = "https://github.com/tailgunnerx/PicCollage-Android"
+
+data class ChangelogEntry(val version: String, val date: String, val notes: String)
+
+val CHANGELOG = listOf(
+    ChangelogEntry(
+        version = "1.1",
+        date = "2026-11-23",
+        notes = "• Added Settings popup with canvas aspect ratios: Portrait, Landscape, Story, Wide & Custom W:H (#1)\n" +
+            "• Added Grid 3×3 preset and Custom grid builder with draggable row & column lines (#2)\n" +
+            "• Added Photo Corners slider (0 = square corners) rendered identically in preview & saved image (#1)\n" +
+            "• Added Export Resolution selector (Standard 1080p, High 1440p, Ultra 2160p)\n" +
+            "• Added Show Emojis toggle for a clean text-only interface (#1)\n" +
+            "• Unified fractional layout engine & smart photo downsampling for 9+ photo grids\n" +
+            "• Added in-app Changelog & GitHub Repository link"
+    ),
+    ChangelogEntry(
+        version = "1.0",
+        date = "2026-05-05",
+        notes = "• Initial release"
+    )
+)
 
 // ─── Settings model ──────────────────────────────────────────────────────────
 
@@ -145,6 +171,17 @@ fun SettingsDialog(
     onChange: (AppSettings) -> Unit,
     onDismiss: () -> Unit
 ) {
+    val context = LocalContext.current
+    var showChangelog by remember { mutableStateOf(false) }
+    val versionName = remember {
+        runCatching { context.packageManager.getPackageInfo(context.packageName, 0).versionName }
+            .getOrNull() ?: CHANGELOG.first().version
+    }
+
+    if (showChangelog) {
+        ChangelogDialog(onBack = { showChangelog = false })
+    }
+
     Dialog(
         onDismissRequest = onDismiss,
         properties = DialogProperties(usePlatformDefaultWidth = false)
@@ -294,6 +331,40 @@ fun SettingsDialog(
                         )
                     )
                 }
+
+                // ── About ────────────────────────────────────────────────────
+                SectionTitle("About", null)
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(Dark700)
+                ) {
+                    AboutRow(
+                        title = "Changelog",
+                        subtitle = "View release notes & version history (v$versionName)",
+                        onClick = { showChangelog = true }
+                    ) {
+                        Text("View", color = SettingsAccent, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                    }
+                    HorizontalDivider(color = Color(0x22FFFFFF), modifier = Modifier.padding(horizontal = 14.dp))
+                    AboutRow(
+                        title = "GitHub Repository",
+                        subtitle = GITHUB_URL.removePrefix("https://"),
+                        subtitleColor = SettingsAccent,
+                        onClick = {
+                            onDismiss()
+                            context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(GITHUB_URL)))
+                        }
+                    ) {
+                        Icon(
+                            imageVector = OpenInNewIcon,
+                            contentDescription = "Open GitHub Repository",
+                            tint = SettingsAccent,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                }
                 Spacer(Modifier.height(16.dp))
             }
 
@@ -369,6 +440,85 @@ private fun OptionCard(title: String, subtitle: String, selected: Boolean, onCli
         Text(title, color = White, fontSize = 13.sp, fontWeight = FontWeight.Bold)
         Text(subtitle, color = if (selected) White else Subtle, fontSize = 10.sp)
     }
+}
+
+@Composable
+private fun AboutRow(
+    title: String,
+    subtitle: String,
+    subtitleColor: Color = Subtle,
+    onClick: () -> Unit,
+    trailing: @Composable () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(horizontal = 14.dp, vertical = 12.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(modifier = Modifier.weight(1f).padding(end = 12.dp)) {
+            Text(text = title, color = White, fontSize = 14.sp, fontWeight = FontWeight.Medium)
+            Text(text = subtitle, color = subtitleColor, fontSize = 11.sp)
+        }
+        trailing()
+    }
+}
+
+@Composable
+fun ChangelogDialog(onBack: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onBack,
+        containerColor = Dark800,
+        titleContentColor = White,
+        textContentColor = Subtle,
+        title = {
+            Text("Changelog", style = MaterialTheme.typography.titleLarge, color = White)
+        },
+        text = {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                CHANGELOG.forEachIndexed { index, entry ->
+                    if (index > 0) {
+                        HorizontalDivider(color = Color(0x22FFFFFF))
+                    }
+                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "v${entry.version}",
+                                style = MaterialTheme.typography.titleMedium,
+                                color = White
+                            )
+                            Text(
+                                text = entry.date,
+                                style = MaterialTheme.typography.labelMedium,
+                                color = if (index == 0) SettingsAccent else Subtle
+                            )
+                        }
+                        Text(
+                            text = entry.notes,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = Subtle
+                        )
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onBack) {
+                Text("Back", color = SettingsAccent)
+            }
+        }
+    )
 }
 
 // ─── Shared small controls ───────────────────────────────────────────────────

@@ -43,7 +43,6 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
@@ -242,19 +241,15 @@ fun PicCollageApp() {
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier.weight(1f)
                 )
-                Box(
-                    modifier = Modifier
-                        .size(40.dp)
-                        .clip(CircleShape)
-                        .background(Dark700)
-                        .clickable { showSettings = true },
-                    contentAlignment = Alignment.Center
+                IconButton(
+                    onClick = { showSettings = true },
+                    modifier = Modifier.size(44.dp)
                 ) {
                     Icon(
-                        painter = painterResource(R.drawable.ic_settings),
+                        imageVector = SettingsIcon,
                         contentDescription = "Settings",
-                        tint = White,
-                        modifier = Modifier.size(22.dp)
+                        tint = SettingsAccent,
+                        modifier = Modifier.size(30.dp)
                     )
                 }
             }
